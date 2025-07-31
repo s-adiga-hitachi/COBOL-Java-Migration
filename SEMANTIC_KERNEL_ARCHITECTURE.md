@@ -1,151 +1,84 @@
-# 🧠 Legacy Modernization Agents to migrate COBOL to Java developed with the Semantic Kernel Process Function
-
-This migration framework was developed to demonstrate AI Agents capabilities for converting legacy code like COBOL to Java. Each Agent has a persona that can be edited depending on the desired outcome.
-The migration is using Semantic Kernel Process Function where it does analysis of the COBOL code and it’s dependencies. This information then used to converting Java Quarkus.
-
-## Acknowledgements of collaboration
-This project is a collaboration between Microsoft's Global Black Belt team and [Bankdata](https://www.bankdata.dk/). If you want to learn more about the collaboration and background of this project, have a look at [this](https://aka.ms/cobol-blog) and [this](https://www.bankdata.dk/about/news/microsoft-and-bankdata-launch-open-source-ai-framework-for-modernizing-legacy-systems) blog post.
-
-## Call-to-Action
-We are looking for real COBOL code to further improve this framework. If you want to actively collaborate, please reach out to us by opening an issue in this repository. - Gustav Kaleta & Julia Kordick
-
-## Table of Contents
-- [Quick Start](#-quick-start)
-  - [Prerequisites](#prerequisites)
-  - [Dev Container](#dev-container)
-- [How It Works - Complete Architecture & Flow](#how-it-works---complete-architecture--flow)
-- [Known issues](#known-issues)
-- [Project ideas](#project-ideas)
-  - [Improvements](#improvements)
-- [Disclaimer](#disclaimer)
-- [Summary](#summary)
-
-## 🚀 Quick Start
-
-### Prerequisites
-- .NET 8.0.x
-- Semantic Kernel SDK
-- Azure OpenAI account with GPT-4.1 model deployed
-- GPT-4.1 supports up to 1M Token per minute which you need edit in https://oai.azure.com/
-
-
-> **INFO:** Remember to read the entire repo to grasp of the project and how you can utilize it for your code base. 
-
-### Dev Container
-This project includes a dev container configuration for Visual Studio Code, which ensures a consistent development environment for all contributors.
-
-> **Note on Java Version**: The project uses Java 17 in the dev container because it's the latest version available in the standard Debian Bookworm repositories. Our dev container is based on `mcr.microsoft.com/devcontainers/dotnet:8.0`, which uses Debian Bookworm as its base image.
-
-#### Requirements to use the Dev Container
-- Docker installed on your machine
-- Visual Studio Code with the "Dev Containers" extension installed
-
-#### Getting Started with the Dev Container
-1. Clone this repository
-2. Open the project folder in Visual Studio Code
-3. When prompted, click "Reopen in Container", or run the "Dev Containers: Reopen in Container" command from the command palette
-4. Wait for the container to build and initialize (this may take a few minutes the first time)
-5. The container includes all required dependencies:
-   - .NET 8.0
-   - Java 17 with Maven
-   - Azure CLI
-   - Required VS Code extensions
-
-After the container is built, the project will be automatically restored and built.
-
-### 🔐 Configure Azure OpenAI Credentials
-
-The project uses a secure two-file configuration system:
-
-1. **`Config/ai-config.env`** - Template with default values (✅ safe to commit)
-2. **`Config/ai-config.local.env`** - Your actual credentials (❌ never commit)
-
-**Setup your credentials:**
-
-```bash
-# 1. Copy the template to create your local config
-cp Config/ai-config.local.env.example Config/ai-config.local.env
-
-# 2. Edit your local config with real values
-nano Config/ai-config.local.env
-```
-
-**In `Config/ai-config.local.env`, update these lines:**
-```bash
-# Replace with your actual Azure OpenAI endpoint
-AZURE_OPENAI_ENDPOINT="https://YOUR-RESOURCE-NAME.openai.azure.com/"
-
-# Replace with your actual API key  
-AZURE_OPENAI_API_KEY="your-32-character-api-key-here"
-
-# Update deployment name to match your Azure setup
-AZURE_OPENAI_DEPLOYMENT_NAME="gpt-4.1"
-```
-
-**🔍 How to find your Azure OpenAI values:**
-- **Endpoint**: Azure Portal → Your OpenAI Resource → "Resource Management" → "Keys and Endpoint" → Endpoint
-- **API Key**: Azure Portal → Your OpenAI Resource → "Resource Management" → "Keys and Endpoint" → Key 1
-- **Deployment Name**: Azure AI Foundry → Your deployment name (must be "gpt-4.1")
-
-**📋 Example `ai-config.local.env` with real values:**
-```bash
-# Example - replace with your actual values
-AZURE_OPENAI_ENDPOINT="https://my-company-openai.openai.azure.com/"
-AZURE_OPENAI_API_KEY="1234567890abcdef1234567890abcdef"
-AZURE_OPENAI_DEPLOYMENT_NAME="gpt-4.1"
-AZURE_OPENAI_MODEL_ID="gpt-4.1"
-```
-
-**⚠️ IMPORTANT**: 
-- Make sure your endpoint ends with `/`
-- API key should be 32 characters long
-- Deployment name must be exactly "gpt-4.1" to match project configuration
-
-### Setup & Run
-```bash
-# 1. Validate your configuration
-./doctor.sh doctor
-
-# 2. Test configuration  
-./doctor.sh test
-
-# 3. Add your COBOL files to cobol-source/ (or use the included samples)
-cp your-cobol-files/* ./cobol-source/
-
-# 4. Run migration
-./doctor.sh run
-```
-
-### ⚠️ **Configuration Troubleshooting**
-
-If you see configuration errors:
-
-```bash
-# Check what's configured
-./doctor.sh doctor
-
-# Run interactive setup (guided process)
-./doctor.sh setup
-
-# Common issues:
-# ❌ "test-api-key-for-validation" → You need to set real API key
-# ❌ "test-resource.openai.azure.com" → You need to set real endpoint  
-# ❌ Model not found → Check your deployment name matches Azure
-```
-
-### All-in-One Management
-The `doctor.sh` script consolidates all functionality:
-- `./doctor.sh setup` - Interactive configuration
-- `./doctor.sh test` - System validation
-- `./doctor.sh run` - Start migration
-- `./doctor.sh doctor` - Diagnose issues
-- `./doctor.sh resume` - Resume interrupted migration
-- `./doctor.sh help` - Show all commands
+# 🧠 Semantic Kernel COBOL Migration Process Function
 
 ## How It Works - Complete Architecture & Flow
 
-The Semantic Kernel process function is used to build an AI-powered COBOL-to-Java migration system that uses Microsoft Semantic Kernel framework to orchestrate multiple specialized AI agents. Here's how it works:
+The Semantic Kernel process function is an AI-powered COBOL-to-Java migration system that uses Microsoft Semantic Kernel framework to orchestrate multiple specialized AI agents. Here's how it works:
 
+## 🏗️ System Architecture
+
+```mermaid
+graph TB
+    %% User Interaction Layer
+    CLI[👤 Command Line Interface<br/>Program.cs]
+    
+    %% Configuration Layer
+    CONFIG[⚙️ Configuration Layer<br/>appsettings.json<br/>Environment Variables]
+    
+    %% Core Process Orchestrator
+    PROCESS[🎯 Migration Process<br/>MigrationProcess.cs<br/>Main Orchestrator]
+    
+    %% AI Agents Layer
+    subgraph AGENTS ["🤖 AI Agents (Semantic Kernel)"]
+        COBOL_AGENT[🔍 CobolAnalyzerAgent<br/>Analyzes COBOL Structure]
+        JAVA_AGENT[☕ JavaConverterAgent<br/>Converts to Java Quarkus]
+        DEP_AGENT[🗺️ DependencyMapperAgent<br/>Maps Dependencies]
+    end
+    
+    %% AI Service Layer
+    subgraph AI_SERVICES ["🧠 AI Services"]
+        AZURE_OPENAI[🌐 Azure OpenAI<br/>GPT-4.1 Models]
+        OPENAI[🤖 OpenAI API<br/>Alternative Provider]
+    end
+    
+    %% Helper Services
+    subgraph HELPERS ["🛠️ Helper Services"]
+        FILE_HELPER[📁 FileHelper<br/>File Operations]
+        LOGGER[📊 EnhancedLogger<br/>API Call Tracking]
+        CHAT_LOGGER[💬 ChatLogger<br/>Conversation Logging]
+    end
+    
+    %% Data Models
+    subgraph MODELS ["📋 Data Models"]
+        COBOL_MODEL[📄 CobolFile<br/>Source Data]
+        ANALYSIS_MODEL[🔬 CobolAnalysis<br/>Analysis Results]
+        JAVA_MODEL[☕ JavaFile<br/>Generated Code]
+        DEP_MODEL[🗺️ DependencyMap<br/>Relationships]
+    end
+    
+    %% Input/Output
+    INPUT[📂 Input<br/>COBOL Files .cbl, .cpy]
+    OUTPUT[📤 Output<br/>Java Files + Reports]
+    
+    %% Connections
+    CLI --> CONFIG
+    CLI --> PROCESS
+    CONFIG --> PROCESS
+    PROCESS --> AGENTS
+    AGENTS --> AI_SERVICES
+    PROCESS --> HELPERS
+    AGENTS --> HELPERS
+    HELPERS --> MODELS
+    AGENTS --> MODELS
+    INPUT --> PROCESS
+    PROCESS --> OUTPUT
+    
+    %% Styling
+    classDef userLayer fill:#e1f5fe,stroke:#0277bd,stroke-width:2px,color:#000000
+    classDef processLayer fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#000000
+    classDef agentLayer fill:#e8f5e8,stroke:#388e3c,stroke-width:2px,color:#000000
+    classDef serviceLayer fill:#fff3e0,stroke:#f57c00,stroke-width:2px,color:#000000
+    classDef helperLayer fill:#fce4ec,stroke:#c2185b,stroke-width:2px,color:#000000
+    classDef modelLayer fill:#f1f8e9,stroke:#689f38,stroke-width:2px,color:#000000
+    classDef ioLayer fill:#e0f2f1,stroke:#00796b,stroke-width:2px,color:#000000
+    
+    class CLI,CONFIG userLayer
+    class PROCESS processLayer
+    class COBOL_AGENT,JAVA_AGENT,DEP_AGENT agentLayer
+    class AZURE_OPENAI,OPENAI serviceLayer
+    class FILE_HELPER,LOGGER,CHAT_LOGGER helperLayer
+    class COBOL_MODEL,ANALYSIS_MODEL,JAVA_MODEL,DEP_MODEL modelLayer
+    class INPUT,OUTPUT ioLayer
+```
 
 ## 🔄 Migration Process Flow (6 Main Steps)
 
@@ -159,7 +92,7 @@ sequenceDiagram
     participant Files as 📁 FileHelper
     participant Logs as 📊 Loggers
     
-    User->>CLI: ./doctor.sh run or dotnet run
+    User->>CLI: ./run.sh or dotnet run
     CLI->>CLI: Parse command line args
     CLI->>Process: Initialize with settings
     
@@ -245,10 +178,10 @@ graph TB
     AGENT_LIFECYCLE --> AI_MODELS
     
     %% Enhanced Styling
-    classDef kernelStyle fill:#e3f2fd,stroke:#1976d2,stroke-width:3px,color:#0d47a1
-    classDef lifecycleStyle fill:#f1f8e9,stroke:#689f38,stroke-width:3px,color:#1b5e20
-    classDef modelStyle fill:#fff3e0,stroke:#f57c00,stroke-width:3px,color:#e65100
-    classDef stepStyle fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#4a148c
+    classDef kernelStyle fill:#e3f2fd,stroke:#1976d2,stroke-width:3px,color:#000000
+    classDef lifecycleStyle fill:#f1f8e9,stroke:#689f38,stroke-width:3px,color:#000000
+    classDef modelStyle fill:#fff3e0,stroke:#f57c00,stroke-width:3px,color:#000000
+    classDef stepStyle fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#000000
     
     class KERNEL,PROMPT_ENGINE,EXECUTION kernelStyle
     class INIT,PROMPT,EXECUTE,PROCESS_RESPONSE,LOG stepStyle
@@ -346,8 +279,8 @@ graph TB
     "DependencyMapperModelId": "gpt-4.1"
   },
   "ApplicationSettings": {
-    "CobolSourceFolder": "cobol-source",
-    "JavaOutputFolder": "java-output"
+    "CobolSourceFolder": "SampleCobol",
+    "JavaOutputFolder": "JavaOutput"
   }
 }
 ```
@@ -620,73 +553,9 @@ graph LR
     D --> E[AI Service Call]
     E --> F[Structured Response]
     
-    style A fill:#e3f2fd
-    style D fill:#f1f8e9
-    style E fill:#fff3e0
+    style A fill:#e3f2fd,color:#000000
+    style D fill:#f1f8e9,color:#000000
+    style E fill:#fff3e0,color:#000000
 ```
 
-## Work in prograss and good to know before you start
-- The project will create a Java-output folder will create a migration report with a summary of the generated files, dependencies analysis, metrics etc.
-- The Logs folder will have analysis, apiCalls ConversionsOutput and a full chat log of the conversion as markdown.
-- Depending on the Cobol file size you can always adjust the tokensize. GPT-4.1 has a limit for approx 32768 tokens, hence this specific setting. Ajust these accordingly for each agent.
-- You can try different models, just remember to change the settings in the projects.
-- If you want to change the agents output, you can change their persona and their tasks.
-  - If you for example do not want to convert code to Java you can change it to only do .NET
-  - If you for example only want to create documentation you can change the Java agent persona or create a new agent.
-  - If you want it to focus on specific areas or ouput you change or add those into the agents persona directly.
-    -   For example it needs to focus on DB2 migration to PostgreSQL
-    -   For example you want to reflect the SQL queries in a desired way add those to the agent's.
-    -   For example if you want the Java folder struckture to reflect Maven so it you can easily build your project
-    -   For example you want to the output to be .NET focused in instead - change that Java Agent for this specifically
-    -   (Experimental) For example you have another legacy code language you can use the same approach like with APL
-        - Replace cobol code with APL and remember to update the agents to focus on APL and not Cobol
-        - Update the Java agent or create a new  agent to reflect the desired programming language output
-
-### ℹ️ Your desired outcome. 
-> Please dicuss what the desires AI agents persona in order to reflect your desired outcome
-        
-
-### Known issues
-Will be updated as we go.
-- Content filtering can stop calls to Azure OpenAI.
-- Make sure you do not increase your tokensize above the agents setting as it't already at it hightest limit.
-
-## Project ideas
-### Improvements
-- tbd
-- feel free to contribute with ideas and improvements
-
-
-
-## Disclaimer
-### Important
-
-This software is provided for demonstration purposes only. It is not intended to be relied upon for any purpose. The creators of this software make no representations or warranties of any kind, express or implied, about the completeness, accuracy, reliability, suitability or availability with respect to the software or the information, products, services, or related graphics contained in the software for any purpose. Any reliance you place on such information is therefore strictly at your own risk.
-
-
-
 **Summary:** The Semantic Kernel process functions are the **core engine** that powers every AI interaction in the migration tool, providing a consistent, observable, and manageable way to orchestrate complex AI workflows across multiple specialized agents! 🚀
-
-
-
-MIT License
-
-    Copyright (c) Microsoft Corporation.
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE
