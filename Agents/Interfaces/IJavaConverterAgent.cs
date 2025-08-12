@@ -15,7 +15,7 @@ public interface IJavaConverterAgent
     /// <param name="cobolAnalysis">The analysis of the COBOL file.</param>
     /// <returns>The generated Java file.</returns>
     Task<JavaFile> ConvertToJavaAsync(CobolFile cobolFile, CobolAnalysis cobolAnalysis);
-    
+
     /// <summary>
     /// Converts a collection of COBOL files to Java Quarkus.
     /// </summary>

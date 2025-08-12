@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/bash
 
 # COBOL Migration Tool - All-in-One Management Script
 # ===================================================
@@ -353,11 +353,12 @@ run_test() {
     echo ""
     echo "Building project and restoring packages..."
     echo "="
-    if timeout 30s dotnet build --no-restore --verbosity quiet 2>/dev/null || dotnet build --verbosity minimal; then
+    SOLUTION_FILE="COBOL-Java-Migration.sln"
+    if timeout 30s dotnet build "$SOLUTION_FILE" --no-restore --verbosity quiet 2>/dev/null || dotnet build "$SOLUTION_FILE" --verbosity minimal; then
         echo -e "${GREEN}✅ Project builds successfully${NC}"
     else
         echo -e "${RED}❌ Project build failed${NC}"
-        echo "Try running: dotnet restore"
+        echo "Try running: dotnet restore $SOLUTION_FILE"
         return 1
     fi
 

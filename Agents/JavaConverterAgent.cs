@@ -1,11 +1,14 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
-using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
 using CobolToQuarkusMigration.Agents.Interfaces;
 using CobolToQuarkusMigration.Models;
 using CobolToQuarkusMigration.Helpers;
 using System.Diagnostics;
+using Newtonsoft.Json;
+using System.Text.RegularExpressions;
+using System;
+using System.Text.Json;
 
 namespace CobolToQuarkusMigration.Agents;
 
@@ -38,17 +41,17 @@ public class JavaConverterAgent : IJavaConverterAgent
     }
 
     /// <inheritdoc/>
-    public async Task<JavaFile> ConvertToJavaAsync(CobolFile cobolFile, CobolAnalysis cobolAnalysis)
+    public async Task<List<JavaFile>> ConvertToJavaAsync(CobolFile cobolFile, CobolAnalysis cobolAnalysis)
     {
         var stopwatch = Stopwatch.StartNew();
-        
+
         _logger.LogInformation("Converting COBOL file to Java: {FileName}", cobolFile.FileName);
-        _enhancedLogger?.LogBehindTheScenes("AI_PROCESSING", "JAVA_CONVERSION_START", 
+        _enhancedLogger?.LogBehindTheScenes("AI_PROCESSING", "JAVA_CONVERSION_START",
             $"Starting Java conversion of {cobolFile.FileName}", cobolFile.FileName);
-        
+
         var kernel = _kernelBuilder.Build();
         int apiCallId = 0;
-        
+
         try
         {
             // Create system prompt for Java conversion
@@ -62,9 +65,15 @@ Follow these guidelines:
 4. Handle COBOL-specific features (PERFORM, GOTO, etc.) in an idiomatic Java way
 5. Implement proper error handling
 6. Include comprehensive comments explaining the conversion decisions
-7. Make the code compatible with Quarkus framework
-8. Apply modern Java best practices, preferablely using Java Quarkus features
-
+7. Make the code compatible with Quarkus framework and Java version 21
+8. Apply modern Java best practices, latest java libraries, preferablely using Java Quarkus features
+9. Ensure the Java code is clean, readable, and maintainable
+10. Also provide pom.xml file for Quarkus dependencies and configuration.
+11. You are to output ONLY valid JSON.  
+No code fences, no explanations, no extra keys, no comments, no formatting other than strict JSON.  
+The JSON must be in the form:  
+{'filename1.java':'file 1 content', 'filename2.java':'file 2 content'}
+ 
 IMPORTANT: The COBOL code may contain placeholder terms that replaced Danish or other languages for error handling terminology for content filtering compatibility. 
 When you see terms like 'ERROR_CODE', 'ERROR_MSG', or 'ERROR_CALLING', understand these represent standard COBOL error handling patterns.
 Convert these to appropriate Java exception handling and logging mechanisms.
@@ -85,14 +94,14 @@ Here is the analysis of the COBOL program to help you understand its structure:
 
 {cobolAnalysis.RawAnalysisData}
 
-Please provide the complete Java Quarkus implementation.
+Please provide the complete Java Quarkus implementation and functionality should exactly match the COBOL program.
 Note: The original code contains Danish error handling terms that have been temporarily replaced with placeholders for processing.
 ";
 
             // Log API call start
             apiCallId = _enhancedLogger?.LogApiCallStart(
-                "JavaConverterAgent", 
-                "ChatCompletion", 
+                "JavaConverterAgent",
+                "ChatCompletion",
                 "OpenAI/ConvertToJava",
                 _modelId,
                 $"Converting {cobolFile.FileName} ({cobolFile.Content.Length} chars)"
@@ -101,7 +110,7 @@ Note: The original code contains Danish error handling terms that have been temp
             // Log user message to chat logger
             _chatLogger?.LogUserMessage("JavaConverterAgent", cobolFile.FileName, prompt, systemPrompt);
 
-            _enhancedLogger?.LogBehindTheScenes("API_CALL", "JAVA_CONVERSION_REQUEST", 
+            _enhancedLogger?.LogBehindTheScenes("API_CALL", "JAVA_CONVERSION_REQUEST",
                 $"Sending conversion request for {cobolFile.FileName} to AI model {_modelId}");
 
             // Create execution settings
@@ -112,47 +121,47 @@ Note: The original code contains Danish error handling terms that have been temp
                 TopP = 0.5
                 // Model ID/deployment name is handled at the kernel level
             };
-            
+
             // Create the full prompt including system and user message
             var fullPrompt = $"{systemPrompt}\n\n{prompt}";
-            
+
             // Convert OpenAI settings to kernel arguments
             var kernelArguments = new KernelArguments(executionSettings);
-            
+
             string javaCode = string.Empty;
             int maxRetries = 3;
             int retryDelay = 5000; // 5 seconds
-            
+
             for (int attempt = 1; attempt <= maxRetries; attempt++)
             {
                 try
                 {
-                    _logger.LogInformation("Converting COBOL to Java - Attempt {Attempt}/{MaxRetries} for {FileName}", 
+                    _logger.LogInformation("Converting COBOL to Java - Attempt {Attempt}/{MaxRetries} for {FileName}",
                         attempt, maxRetries, cobolFile.FileName);
-                    
+
                     var functionResult = await kernel.InvokePromptAsync(
                         fullPrompt,
                         kernelArguments);
-                    
+
                     javaCode = functionResult.GetValue<string>() ?? string.Empty;
-                    
+
                     // If we get here, the call was successful
                     break;
                 }
                 catch (Exception ex) when (attempt < maxRetries && (
-                    ex.Message.Contains("canceled") || 
+                    ex.Message.Contains("canceled") ||
                     ex.Message.Contains("timeout") ||
                     ex.Message.Contains("The request was canceled") ||
                     ex.Message.Contains("content_filter") ||
                     ex.Message.Contains("content filtering") ||
                     ex.Message.Contains("ResponsibleAIPolicyViolation")))
                 {
-                    _logger.LogWarning("Attempt {Attempt} failed for {FileName}: {Error}. Retrying in {Delay}ms...", 
+                    _logger.LogWarning("Attempt {Attempt} failed for {FileName}: {Error}. Retrying in {Delay}ms...",
                         attempt, cobolFile.FileName, ex.Message, retryDelay);
-                    
-                    _enhancedLogger?.LogBehindTheScenes("API_CALL", "RETRY_ATTEMPT", 
+
+                    _enhancedLogger?.LogBehindTheScenes("API_CALL", "RETRY_ATTEMPT",
                         $"Retrying conversion for {cobolFile.FileName} - attempt {attempt}/{maxRetries} (Content filtering or timeout)", ex.Message);
-                    
+
                     await Task.Delay(retryDelay);
                     retryDelay *= 2; // Exponential backoff
                 }
@@ -160,64 +169,95 @@ Note: The original code contains Danish error handling terms that have been temp
                 {
                     // Log API call failure
                     _enhancedLogger?.LogApiCallEnd(apiCallId, string.Empty, 0, 0);
-                    _enhancedLogger?.LogBehindTheScenes("ERROR", "API_CALL_FAILED", 
+                    _enhancedLogger?.LogBehindTheScenes("ERROR", "API_CALL_FAILED",
                         $"API call failed for {cobolFile.FileName}: {ex.Message}", ex);
-                    
+
                     _logger.LogError(ex, "Failed to convert COBOL file to Java: {FileName}", cobolFile.FileName);
                     throw;
                 }
             }
-            
+
             if (string.IsNullOrEmpty(javaCode))
             {
                 throw new InvalidOperationException($"Failed to convert {cobolFile.FileName} after {maxRetries} attempts");
             }
-            
+
             // Log AI response to chat logger
             _chatLogger?.LogAIResponse("JavaConverterAgent", cobolFile.FileName, javaCode);
-            
+
             // Log API call completion
             _enhancedLogger?.LogApiCallEnd(apiCallId, javaCode, javaCode.Length / 4, 0.002m); // Rough token estimate
-            _enhancedLogger?.LogBehindTheScenes("API_CALL", "JAVA_CONVERSION_RESPONSE", 
-                $"Received Java conversion for {cobolFile.FileName} ({javaCode.Length} chars)");
-            
-            // Extract the Java code from markdown code blocks if necessary
-            javaCode = ExtractJavaCode(javaCode);
-            
-            // Parse file details
-            string className = GetClassName(javaCode);
-            string packageName = GetPackageName(javaCode);
-            
-            var javaFile = new JavaFile
+            _enhancedLogger?.LogBehindTheScenes("API_CALL", "JAVA_CONVERSION_RESPONSE",
+                $"Received Java conversion for {cobolFile.FileName} ({javaCode.Length} chars)", javaCode);
+
+            // Remove any ```json or ``` anywhere in the string
+            string cleaned = Regex.Replace(javaCode, @"```[a-zA-Z]*\r?\n?|```", "");
+
+            // Trim extra whitespace
+            cleaned = cleaned.Trim();
+
+            // Deserialize into Dictionary<string, string>
+            var files = JsonConvert.DeserializeObject<Dictionary<string, string>>(cleaned);
+
+            // Create list of JavaFile
+            var javaFiles = new List<JavaFile>();
+
+            if (files != null)
             {
-                FileName = $"{className}.java",
-                Content = javaCode,
-                ClassName = className,
-                PackageName = packageName,
-                OriginalCobolFileName = cobolFile.FileName
-            };
-            
+                foreach (var entry in files)
+                {
+                    string fileName = entry.Key;
+                    string content = entry.Value ?? string.Empty;
+
+                    // Add to list
+                    javaFiles.Add(new JavaFile
+                    {
+                        FileName = fileName,
+                        Content = content,
+                        PackageName = GetPackageName(content),
+                        ClassName = GetClassName(content),
+                        OriginalCobolFileName = cobolFile.FileName
+                    });
+                }
+            }
+
+            // // Extract the Java code from markdown code blocks if necessary
+            // javaCode = ExtractJavaCode(javaCode);
+
+            // // Parse file details
+            // string className = GetClassName(javaCode);
+            // string packageName = GetPackageName(javaCode);
+
+            // var javaFile = new JavaFile
+            // {
+            //     FileName = $"{className}.java",
+            //     Content = javaCode,
+            //     ClassName = className,
+            //     PackageName = packageName,
+            //     OriginalCobolFileName = cobolFile.FileName
+            // };
+
             stopwatch.Stop();
-            _enhancedLogger?.LogBehindTheScenes("AI_PROCESSING", "JAVA_CONVERSION_COMPLETE", 
-                $"Completed Java conversion of {cobolFile.FileName} in {stopwatch.ElapsedMilliseconds}ms", javaFile);
-            
+            _enhancedLogger?.LogBehindTheScenes("AI_PROCESSING", "JAVA_CONVERSION_COMPLETE",
+                $"Completed Java conversion of {cobolFile.FileName} in {stopwatch.ElapsedMilliseconds}ms", javaFiles);
+
             _logger.LogInformation("Completed conversion of COBOL file to Java: {FileName}", cobolFile.FileName);
-            
-            return javaFile;
+
+            return javaFiles;
         }
         catch (Exception ex)
         {
             stopwatch.Stop();
-            
+
             // Log API call error
             if (apiCallId > 0)
             {
                 _enhancedLogger?.LogApiCallError(apiCallId, ex.Message);
             }
-            
-            _enhancedLogger?.LogBehindTheScenes("ERROR", "JAVA_CONVERSION_ERROR", 
+
+            _enhancedLogger?.LogBehindTheScenes("ERROR", "JAVA_CONVERSION_ERROR",
                 $"Failed to convert {cobolFile.FileName}: {ex.Message}", ex);
-            
+
             _logger.LogError(ex, "Error converting COBOL file to Java: {FileName}", cobolFile.FileName);
             throw;
         }
@@ -227,33 +267,33 @@ Note: The original code contains Danish error handling terms that have been temp
     public async Task<List<JavaFile>> ConvertToJavaAsync(List<CobolFile> cobolFiles, List<CobolAnalysis> cobolAnalyses, Action<int, int>? progressCallback = null)
     {
         _logger.LogInformation("Converting {Count} COBOL files to Java", cobolFiles.Count);
-        
+
         var javaFiles = new List<JavaFile>();
         int processedCount = 0;
-        
+
         for (int i = 0; i < cobolFiles.Count; i++)
         {
             var cobolFile = cobolFiles[i];
             var cobolAnalysis = i < cobolAnalyses.Count ? cobolAnalyses[i] : null;
-            
+
             if (cobolAnalysis == null)
             {
                 _logger.LogWarning("No analysis found for COBOL file: {FileName}", cobolFile.FileName);
                 continue;
             }
-            
-            var javaFile = await ConvertToJavaAsync(cobolFile, cobolAnalysis);
-            javaFiles.Add(javaFile);
-            
+
+            // var javaFile = await ConvertToJavaAsync(cobolFile, cobolAnalysis);
+            javaFiles.AddRange(await ConvertToJavaAsync(cobolFile, cobolAnalysis));
+
             processedCount++;
             progressCallback?.Invoke(processedCount, cobolFiles.Count);
         }
-        
+
         _logger.LogInformation("Completed conversion of {Count} COBOL files to Java", cobolFiles.Count);
-        
+
         return javaFiles;
     }
-    
+
     private string ExtractJavaCode(string input)
     {
         // If the input contains markdown code blocks, extract the Java code
@@ -261,24 +301,24 @@ Note: The original code contains Danish error handling terms that have been temp
         {
             var startMarker = "```java";
             var endMarker = "```";
-            
+
             int startIndex = input.IndexOf(startMarker);
             if (startIndex >= 0)
             {
                 startIndex += startMarker.Length;
                 int endIndex = input.IndexOf(endMarker, startIndex);
-                
+
                 if (endIndex >= 0)
                 {
                     return input.Substring(startIndex, endIndex - startIndex).Trim();
                 }
             }
         }
-        
+
         // If no code blocks or extraction failed, return the original input
         return input;
     }
-    
+
     private string GetClassName(string javaCode)
     {
         try
@@ -297,7 +337,7 @@ Note: The original code contains Danish error handling terms that have been temp
                         var className = parts[2];
                         // Remove any trailing characters like { or implements
                         className = className.Split('{', ' ', '\t', '\r', '\n')[0];
-                        
+
                         // Validate class name (should be alphanumeric + underscore)
                         if (IsValidJavaIdentifier(className))
                         {
@@ -306,17 +346,17 @@ Note: The original code contains Danish error handling terms that have been temp
                     }
                 }
             }
-            
+
             // Fallback: look for any class declaration
             var classIndex = javaCode.IndexOf("class ");
             if (classIndex >= 0)
             {
                 var start = classIndex + "class ".Length;
                 var remaining = javaCode.Substring(start);
-                
+
                 // Take only the first word after "class"
                 var firstWord = remaining.Split(' ', '\t', '\r', '\n', '{')[0].Trim();
-                
+
                 if (IsValidJavaIdentifier(firstWord))
                 {
                     return firstWord;
@@ -327,7 +367,7 @@ Note: The original code contains Danish error handling terms that have been temp
         {
             _logger.LogWarning(ex, "Error extracting class name from Java code");
         }
-        
+
         // Default to a generic name if extraction fails
         return "ConvertedCobolProgram";
     }
@@ -339,14 +379,14 @@ Note: The original code contains Danish error handling terms that have been temp
     {
         if (string.IsNullOrWhiteSpace(identifier))
             return false;
-            
+
         // Java identifier rules: start with letter/underscore, followed by letters/digits/underscores
         if (!char.IsLetter(identifier[0]) && identifier[0] != '_')
             return false;
-            
+
         return identifier.All(c => char.IsLetterOrDigit(c) || c == '_');
     }
-    
+
     private string GetPackageName(string javaCode)
     {
         // Simple regex-like extraction for package name
@@ -356,17 +396,17 @@ Note: The original code contains Danish error handling terms that have been temp
         {
             var start = packageIndex + "package ".Length;
             var end = javaCode.IndexOf(";", start);
-            
+
             if (end >= 0)
             {
                 return javaCode.Substring(start, end - start).Trim();
             }
         }
-        
+
         // Default to a generic package if extraction fails
         return "com.example.cobol";
     }
-    
+
     /// <summary>
     /// Sanitizes COBOL content to avoid Azure OpenAI content filtering issues.
     /// This method replaces potentially problematic Danish terms with neutral equivalents.
@@ -377,9 +417,9 @@ Note: The original code contains Danish error handling terms that have been temp
     {
         if (string.IsNullOrEmpty(cobolContent))
             return cobolContent;
-            
+
         _logger.LogDebug("Sanitizing COBOL content for content filtering compatibility");
-        
+
         // Dictionary of Danish error handling terms that trigger content filtering
         var sanitizationMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -397,10 +437,10 @@ Note: The original code contains Danish error handling terms that have been temp
             {"KALD", "CALL_OP"},
             {"MEDD-TEKST", "MSG_TEXT"},
         };
-        
+
         string sanitizedContent = cobolContent;
         bool contentModified = false;
-        
+
         foreach (var (original, replacement) in sanitizationMap)
         {
             if (sanitizedContent.Contains(original))
@@ -410,13 +450,18 @@ Note: The original code contains Danish error handling terms that have been temp
                 _logger.LogDebug("Replaced '{Original}' with '{Replacement}' in COBOL content", original, replacement);
             }
         }
-        
+
         if (contentModified)
         {
-            _enhancedLogger?.LogBehindTheScenes("CONTENT_FILTER", "SANITIZATION_APPLIED", 
+            _enhancedLogger?.LogBehindTheScenes("CONTENT_FILTER", "SANITIZATION_APPLIED",
                 "Applied content sanitization to avoid Azure OpenAI content filtering");
         }
-        
+
         return sanitizedContent;
+    }
+
+    Task<JavaFile> IJavaConverterAgent.ConvertToJavaAsync(CobolFile cobolFile, CobolAnalysis cobolAnalysis)
+    {
+        throw new NotImplementedException();
     }
 }
