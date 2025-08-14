@@ -67,12 +67,12 @@ Follow these guidelines:
 6. Include comprehensive comments explaining the conversion decisions
 7. Make the code compatible with Quarkus framework and Java version 21
 8. Apply modern Java best practices, latest java libraries, preferablely using Java Quarkus features
-9. Ensure the Java code is clean, readable, and maintainable
+9. Ensure the Java code is clean, readable, maintainable and use org.hitachi as package name suffix.
 10. Also provide pom.xml file for Quarkus dependencies and configuration.
-11. You are to output ONLY valid JSON.  
+11. You are to output ONLY valid JSON.
 No code fences, no explanations, no extra keys, no comments, no formatting other than strict JSON.  
-The JSON must be in the form:  
-{'filename1.java':'file 1 content', 'filename2.java':'file 2 content'}
+The JSON must be in the form:
+{'only file name(not path)':'file content', 'only file name(not path)':'file content'}
  
 IMPORTANT: The COBOL code may contain placeholder terms that replaced Danish or other languages for error handling terminology for content filtering compatibility. 
 When you see terms like 'ERROR_CODE', 'ERROR_MSG', or 'ERROR_CALLING', understand these represent standard COBOL error handling patterns.
@@ -190,14 +190,8 @@ Note: The original code contains Danish error handling terms that have been temp
             _enhancedLogger?.LogBehindTheScenes("API_CALL", "JAVA_CONVERSION_RESPONSE",
                 $"Received Java conversion for {cobolFile.FileName} ({javaCode.Length} chars)", javaCode);
 
-            // Remove any ```json or ``` anywhere in the string
-            string cleaned = Regex.Replace(javaCode, @"```[a-zA-Z]*\r?\n?|```", "");
-
-            // Trim extra whitespace
-            cleaned = cleaned.Trim();
-
             // Deserialize into Dictionary<string, string>
-            var files = JsonConvert.DeserializeObject<Dictionary<string, string>>(cleaned);
+            var files = JsonConvert.DeserializeObject<Dictionary<string, string>>(javaCode);
 
             // Create list of JavaFile
             var javaFiles = new List<JavaFile>();
@@ -220,22 +214,6 @@ Note: The original code contains Danish error handling terms that have been temp
                     });
                 }
             }
-
-            // // Extract the Java code from markdown code blocks if necessary
-            // javaCode = ExtractJavaCode(javaCode);
-
-            // // Parse file details
-            // string className = GetClassName(javaCode);
-            // string packageName = GetPackageName(javaCode);
-
-            // var javaFile = new JavaFile
-            // {
-            //     FileName = $"{className}.java",
-            //     Content = javaCode,
-            //     ClassName = className,
-            //     PackageName = packageName,
-            //     OriginalCobolFileName = cobolFile.FileName
-            // };
 
             stopwatch.Stop();
             _enhancedLogger?.LogBehindTheScenes("AI_PROCESSING", "JAVA_CONVERSION_COMPLETE",
